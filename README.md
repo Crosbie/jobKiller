@@ -8,5 +8,5 @@ _*hopefully won't kill jobs_
 - create .env file (from example.env) and populate API Keys
 - `npm install`
 - `npm app.js`
-- Go to [http://localhost:3000]
+- Go to http://localhost:3000
 - When page has loaded, click a Use Case
