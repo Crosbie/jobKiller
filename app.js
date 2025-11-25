@@ -62,7 +62,7 @@ app.get('/', async (req, res) => {
             // Clear the old cache (if we are refreshing) and populate the new one
             extractedArticlesCache = []; 
             
-            // Process the first 5 articles
+            // Process the first 10 articles
             for (const item of feed.items.slice(0, 10)) {
                 const articleContent = item.content || item.contentSnippet;
                 
@@ -152,7 +152,13 @@ app.get('/guide/:articleIndex/:featureIndex/:useCaseIndex', async (req, res) => 
 
 
 // --- Start Server ---
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+const HOST = process.env.IP_ADDRESS || '127.0.0.1'; // Use IP_ADDRESS if set, otherwise default to localhost
+const BIND_MESSAGE = HOST === '127.0.0.1' 
+    ? `(Localhost only. To allow external access, set the IP_ADDRESS environment variable.)`
+    : `(Listening on ${HOST}, accessible externally.)`;
+
+app.listen(port, HOST, () => {
+    console.log(`Server running at http://${HOST}:${port}`);
     console.log(`AI Keys loaded successfully from .env`);
+    console.log(`Binding Information: ${BIND_MESSAGE}`);
 });

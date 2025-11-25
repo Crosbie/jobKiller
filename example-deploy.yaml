@@ -1,0 +1,143 @@
+---
+# 1. Secret: Stores sensitive API keys securely
+# ---------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jobkiller-secrets
+type: Opaque
+stringData:
+  # IMPORTANT: Replace these placeholder values with your actual API keys.
+  GEMINI_API_KEY: "YOUR_GEMINI_API_KEY_HERE"
+  OPENAI_API_KEY: "YOUR_OPENAI_API_KEY_HERE"
+
+---
+# 2. ImageStream: Holds references to the images built by the BuildConfig
+# ---------------------------------------------
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: jobkiller
+
+---
+# 3. BuildConfig: Defines how OpenShift builds the application image from Git (S2I)
+# ---------------------------------------------
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: jobkiller
+spec:
+  source:
+    type: Git
+    git:
+      # Ensure this URL is correct and accessible by OpenShift
+      uri: https://github.com/Crosbie/jobKiller.git
+    contextDir: /
+  strategy:
+    type: Source
+    sourceStrategy:
+      # Use the latest Node.js S2I Builder Image
+      from:
+        kind: ImageStreamTag
+        namespace: openshift
+        name: 'nodejs:20' 
+  output:
+    to:
+      # Output the resulting image to the ImageStream defined above
+      kind: ImageStreamTag
+      name: 'jobkiller:latest'
+  triggers:
+    - type: ConfigChange # Triggers a build on initial application of this file
+    - type: GitHub # Optional: For automatic rebuilds on Git push (requires webhook setup)
+      github:
+        secret: 'webhook-secret'
+
+---
+# 4. DeploymentConfig: Manages the application deployment and scaling
+# ---------------------------------------------
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: jobkiller
+spec:
+  replicas: 1
+  selector:
+    app: jobkiller
+  triggers:
+    - type: ConfigChange # Triggers a deployment when the DeploymentConfig is updated
+    - type: ImageChange # 🔥 Triggers a deployment when a new image is pushed to jobkiller:latest
+      imageChangeParams:
+        automatic: true
+        containerNames:
+          - jobkiller
+        from:
+          kind: ImageStreamTag
+          name: 'jobkiller:latest' # Reference the internal ImageStreamTag
+  template:
+    metadata:
+      labels:
+        app: jobkiller
+    spec:
+      containers:
+        - name: jobkiller
+          # OpenShift uses the trigger above to populate the exact image reference here
+          image: 'jobkiller:latest' 
+          ports:
+            - containerPort: 8080 # S2I Node.js apps listen on port 8080 by default
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: 500m
+            requests:
+              memory: 128Mi
+              cpu: 100m
+          # Inject environment variables from the Secret
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jobkiller-secrets
+                  key: GEMINI_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jobkiller-secrets
+                  key: OPENAI_API_KEY
+            - name: NODE_PORT
+              value: "8080" # Ensure Node.js knows its listening port
+            - name: IP_ADDRESS
+              value: "0.0.0.0" # Bind to all interfaces for OpenShift
+
+---
+# 5. Service: Exposes the container port internally
+# ---------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: jobkiller
+spec:
+  selector:
+    app: jobkiller
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# 6. Route: Exposes the Service externally via a public URL
+# ---------------------------------------------
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jobkiller
+spec:
+  to:
+    kind: Service
+    name: jobkiller
+  port:
+    targetPort: 8080
+  # Recommended TLS termination setup
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
