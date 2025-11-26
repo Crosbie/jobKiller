@@ -42,7 +42,8 @@ hbs.registerHelper('if_eq', function(a, b, opts) {
 function getProvider(req) {
     // Note: We'll use the provider from the query/cache, but this function
     // still determines the provider for the initial extraction run.
-    const provider = req.query.provider && req.query.provider.toLowerCase() === 'openai' ? 'openai' : 'gemini';
+    // const provider = req.query.provider && req.query.provider.toLowerCase() === 'openai' ? 'openai' : 'gemini';
+    const provider = 'gemini';
     return provider;
 }
 
@@ -133,14 +134,15 @@ app.get('/guide/:articleIndex/:featureIndex/:useCaseIndex', async (req, res) => 
         console.log(`Generating Guide using ${generationProvider.toUpperCase()} for cached feature: ${feature.featureName}`);
         
         // --- Guide Generation (This is still an API call) ---
-        const guideHtml = await generateGuide(feature, useCase, generationProvider);
+        const guideData = await generateGuide(feature, useCase, generationProvider);
 
         res.render('guide', {
             title: `Guide: ${feature.featureName} [${generationProvider.toUpperCase()}]`,
             articleTitle: article.title,
             featureName: feature.featureName,
             useCase: useCase,
-            guideHtml: guideHtml,
+            infographicHtml: guideData.infographicHtml,
+            guideHtml: guideData.html,
             currentProvider: generationProvider
         });
 
