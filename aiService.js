@@ -8,11 +8,21 @@ const https = require('https');
 const crypto = require('crypto');
 
 // --- Initialization ---
-// Ensure dotenv has run in index.js before this file is loaded
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Explicitly assign API keys from process.env (loaded by dotenv in index.js)
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-// --- Configuration ---
+if (!GEMINI_KEY || !OPENAI_KEY) {
+    console.error("CRITICAL: One or both API keys are missing. Ensure GEMINI_API_KEY and OPENAI_API_KEY are set in your .env file.");
+    // Optionally exit the process or throw an error here if keys are mandatory.
+}
+
+// Initialize AI clients, explicitly passing the key
+const ai = new GoogleGenAI({ apiKey: GEMINI_KEY }); // Explicit assignment
+const openai = new OpenAI({ apiKey: OPENAI_KEY });   // Explicit assignment
+
+
+// --- Configuration (Remains the same) ---
 const GEMINI_MODEL_EXTRACT = "gemini-2.5-flash"; 
 const GEMINI_MODEL_GUIDE = "gemini-2.5-pro";    
 const CHATGPT_MODEL_EXTRACT = "gpt-4o-mini";    
@@ -21,6 +31,7 @@ const CHATGPT_MODEL_GUIDE = "gpt-4o";
 
 // 1. Define the schema for a single Feature Object
 const featureObjectSchema = {
+// ... (Remains the same) ...
     type: "object",
     properties: {
         featureName: { type: "string", description: "A concise, descriptive title for the product update or feature." },
@@ -34,13 +45,13 @@ const featureObjectSchema = {
     required: ["featureName", "featureSummary", "potentialUseCases"]
 };
 
-// 2. Define the TOP-LEVEL schema for Gemini (which accepts an array)
+// 2. Define the TOP-LEVEL schema for Gemini (array)
 const geminiExtractionSchema = {
     type: "array",
     items: featureObjectSchema
 };
 
-// 3. Define the TOP-LEVEL schema for OpenAI (which requires an object wrapper)
+// 3. Define the TOP-LEVEL schema for OpenAI (object wrapper)
 const openaiExtractionSchema = {
     type: "object",
     properties: {
@@ -59,6 +70,7 @@ const openaiExtractionSchema = {
 // ------------------------------------------
 
 async function extractFeatures(articleText, provider = 'gemini') {
+// ... (Logic remains the same, using the explicitly initialized 'ai' and 'openai' objects) ...
     const prompt = `
         Analyze the following Red Hat news article. Your task is to extract all new product updates, technical features, or significant value-added stories.
         If the article is primarily corporate news, opinion, or non-technical, return an empty array (or a wrapper object with an empty array).
@@ -84,18 +96,16 @@ async function extractFeatures(articleText, provider = 'gemini') {
                     function: {
                         name: "extract_features",
                         description: "Extracts product features and use cases from a Red Hat announcement article.",
-                        parameters: openaiExtractionSchema, // Use the new OBJECT schema here
+                        parameters: openaiExtractionSchema,
                     }
                 }],
                 tool_choice: { type: "function", function: { name: "extract_features" } },
                 temperature: 0.1,
             });
             
-            // The JSON output will be inside the function call arguments
             const callArguments = response.choices[0].message.tool_calls[0].function.arguments;
             jsonText = callArguments; 
             
-            // Parse the JSON string and extract the array from the wrapper object
             const parsedObject = JSON.parse(jsonText);
             finalResult = parsedObject.extractedFeatures || [];
 
@@ -105,15 +115,14 @@ async function extractFeatures(articleText, provider = 'gemini') {
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
-                    responseSchema: geminiExtractionSchema, // Use the array schema here
+                    responseSchema: geminiExtractionSchema,
                     temperature: 0.1,
                 },
             });
             jsonText = response.text.trim();
-            finalResult = JSON.parse(jsonText); // Gemini returns the array directly
+            finalResult = JSON.parse(jsonText);
         }
 
-        // Return the final array of features
         return finalResult;
 
     } catch (error) {
@@ -181,6 +190,7 @@ Return ONLY the HTML div with inline styles, no explanations.`;
 
 async function generateGuide(feature, useCase, provider = 'gemini') {
     const guidePrompt = `
+// ... (Prompt remains the same) ...
         You are a technical writer. Write a comprehensive, step-by-step technical guide for a user.
         The guide should focus on the new Red Hat feature: **${feature.featureName}** (Summary: ${feature.featureSummary}).
         The entire guide must be contextualized around the following real-world scenario/use case: **${useCase}**.
@@ -216,6 +226,7 @@ async function generateGuide(feature, useCase, provider = 'gemini') {
             }).then(res => res.text);
         }
 
+<<<<<<< HEAD
         const [infographicResult, textResult] = await Promise.all([infographicPromise, textPromise]);
 
         let html = textResult.replace(/```(html)?/g, '').trim();
@@ -238,6 +249,9 @@ async function generateGuide(feature, useCase, provider = 'gemini') {
             infographicHtml: infographicResult,
             html: html
         };
+=======
+        return responseText.replace(/```(html)?/g, '').trim();
+>>>>>>> 9c694b60d0036a43e0dbf4a1eea622e03201f8a9
 
     } catch (error) {
         console.error(`[${provider.toUpperCase()}] API Guide Generation Error:`, error);
