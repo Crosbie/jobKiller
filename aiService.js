@@ -12,7 +12,6 @@ const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 if (!GEMINI_KEY || !OPENAI_KEY) {
     console.error("CRITICAL: One or both API keys are missing. Ensure GEMINI_API_KEY and OPENAI_API_KEY are set in your .env file.");
-    // Optionally exit the process or throw an error here if keys are mandatory.
 }
 
 // Initialize AI clients, explicitly passing the key
@@ -29,7 +28,6 @@ const CHATGPT_MODEL_GUIDE = "gpt-4o";
 
 // 1. Define the schema for a single Feature Object
 const featureObjectSchema = {
-// ... (Remains the same) ...
     type: "object",
     properties: {
         featureName: { type: "string", description: "A concise, descriptive title for the product update or feature." },
@@ -68,7 +66,6 @@ const openaiExtractionSchema = {
 // ------------------------------------------
 
 async function extractFeatures(articleText, provider = 'gemini') {
-// ... (Logic remains the same, using the explicitly initialized 'ai' and 'openai' objects) ...
     const prompt = `
         Analyze the following Red Hat news article. Your task is to extract all new product updates, technical features, or significant value-added stories.
         If the article is primarily corporate news, opinion, or non-technical, return an empty array (or a wrapper object with an empty array).
@@ -134,19 +131,22 @@ async function extractFeatures(articleText, provider = 'gemini') {
 // Guide Generation Wrapper
 // ------------------------------------------
 
-async function generateGuide(feature, useCase, provider = 'gemini') {
+async function generateGuide(feature, useCase, provider = 'gemini', industry = 'General Tech') {
+    
     const guidePrompt = `
-// ... (Prompt remains the same) ...
-        You are a technical writer. Write a comprehensive, step-by-step technical guide for a user.
-        The guide should focus on the new Red Hat feature: **${feature.featureName}** (Summary: ${feature.featureSummary}).
+        You are a technical writer. Write a comprehensive, step-by-step technical guide for a **technical user**.
+        The guide must focus on the new Red Hat feature: **${feature.featureName}** (Summary: ${feature.featureSummary}).
+        
         The entire guide must be contextualized around the following real-world scenario/use case: **${useCase}**.
+        
+        ***CRITICAL CONTEXT: The guide must be written specifically for a company operating within the ${industry} industry. Use relevant terminology, compliance considerations (if applicable), and examples typical of that industry.***
         
         The guide must be returned as a complete HTML snippet (excluding <html>, <head>, and <body> tags, but including <h1>, <p>, <h2>, <ul>, and <code> tags).
         It should be professional, instructive, and include:
-        1. An introduction relating the feature to the use case.
-        2. Prerequisites (e.g., 'RHEL 9', 'OpenShift Cluster access').
-        3. A section of at least 3-10 actionable, technical steps/commands with brief explanations.
-        4. A conclusion on the value proposition.
+        1. An introduction relating the feature to the use case in the context of the ${industry} industry.
+        2. Prerequisites (e.g., 'RHEL 9', 'OpenShift Cluster access', necessary toolchains, etc.).
+        3. A section of at least 3 actionable, technical steps/commands with brief explanations.
+        4. A conclusion on the value proposition for an ${industry} business.
     `;
 
     try {

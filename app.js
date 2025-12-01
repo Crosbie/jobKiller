@@ -63,7 +63,7 @@ app.get('/', async (req, res) => {
             extractedArticlesCache = []; 
             
             // Process the first 10 articles
-            for (const item of feed.items.slice(0, 10)) {
+            for (const item of feed.items.slice(0, 15)) {
                 const articleContent = item.content || item.contentSnippet;
                 
                 // --- Feature Extraction ---
@@ -125,15 +125,17 @@ app.get('/guide/:articleIndex/:featureIndex/:useCaseIndex', async (req, res) => 
     }
 
     const useCase = feature.potentialUseCases[useCaseIndex];
+
+    const industry = req.query.industry || 'General Tech';
     
     // Use the provider that was originally used to extract the features
     const generationProvider = article.extractionProvider || getProvider(req);
     
     try {
-        console.log(`Generating Guide using ${generationProvider.toUpperCase()} for cached feature: ${feature.featureName}`);
+        console.log(`Generating Guide for Industry: ${industry} using ${generationProvider.toUpperCase()}...`);
         
-        // --- Guide Generation (This is still an API call) ---
-        const guideHtml = await generateGuide(feature, useCase, generationProvider);
+        // --- Guide Generation (Pass the industry to the generation function) ---
+        const guideHtml = await generateGuide(feature, useCase, generationProvider, industry); // <--- Pass industry here
 
         res.render('guide', {
             title: `Guide: ${feature.featureName} [${generationProvider.toUpperCase()}]`,
@@ -141,7 +143,8 @@ app.get('/guide/:articleIndex/:featureIndex/:useCaseIndex', async (req, res) => 
             featureName: feature.featureName,
             useCase: useCase,
             guideHtml: guideHtml,
-            currentProvider: generationProvider
+            currentProvider: generationProvider,
+            targetIndustry: industry // Pass to HBS for display if needed
         });
 
     } catch (error) {
