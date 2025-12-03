@@ -26,9 +26,9 @@ if (!GEMINI_KEY || !OPENAI_KEY) {
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
-// Helper function to call Gemini v1 API directly (bypassing SDK's v1beta)
+// Helper function to call Gemini API directly via axios
 async function callGeminiV1API(model, prompt, config = {}) {
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     
     const requestBody = {
         contents: [{
@@ -56,9 +56,9 @@ async function callGeminiV1API(model, prompt, config = {}) {
 
 
 // --- Configuration ---
-// Using v1 API model names
+// Using v1beta API for gemini-2.5 models
 const GEMINI_MODEL_EXTRACT = "gemini-2.5-flash"; 
-const GEMINI_MODEL_GUIDE = "gemini-2.5-flash"; // v1 might not have pro, using flash   
+const GEMINI_MODEL_GUIDE = "gemini-2.5-flash";   
 const CHATGPT_MODEL_EXTRACT = "gpt-4o-mini";    
 const CHATGPT_MODEL_GUIDE = "gpt-4o";           
 
@@ -165,7 +165,16 @@ async function extractFeatures(articleText, provider = 'gemini') {
             
             // Clean and parse JSON
             jsonText = jsonText.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '');
-            finalResult = JSON.parse(jsonText);
+            let parsedResult = JSON.parse(jsonText);
+            
+            // Normalize the data structure - the AI sometimes returns different key names
+            finalResult = parsedResult.map(feature => ({
+                featureName: feature.featureName || feature.name || feature.feature_name || '',
+                featureSummary: feature.featureSummary || feature.technical_summary || feature.summary || feature.feature_summary || '',
+                potentialUseCases: feature.potentialUseCases || feature.use_cases || feature.useCases || []
+            }));
+            
+            console.log('[DEBUG] Normalized features count:', finalResult.length);
         }
 
         return finalResult;

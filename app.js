@@ -1,7 +1,7 @@
 // index.js
 
-// 1. Load environment variables from .env file FIRST
-require('dotenv').config(); 
+// 1. Load environment variables from .env file FIRST (override any existing env vars)
+require('dotenv').config({ override: true }); 
 
 const express = require('express');
 const hbs = require('hbs');
