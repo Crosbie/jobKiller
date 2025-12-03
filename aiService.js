@@ -7,10 +7,6 @@ const path = require('path');
 
 // --- Initialization ---
 
-// Ensure dotenv has run in index.js before this file is loaded
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 
 // Explicitly assign API keys from process.env (loaded by dotenv in index.js)
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
@@ -90,6 +86,10 @@ async function extractFeatures(articleText, provider = 'gemini') {
         let finalResult = [];
 
         if (provider === 'openai') {
+            if (!OPENAI_KEY || OPENAI_KEY === "YOUR_API_KEY_HERE"){
+                console.error("OPENAI_API_KEY is not set. Cannot perform extraction with OpenAI.");
+                return finalResult = {msg: "OPENAI_API_KEY not set"};
+            }
             const response = await openai.chat.completions.create({
                 model: CHATGPT_MODEL_EXTRACT,
                 messages: [{ role: "user", content: prompt }],
@@ -112,6 +112,10 @@ async function extractFeatures(articleText, provider = 'gemini') {
             finalResult = parsedObject.extractedFeatures || [];
 
         } else { // 'gemini'
+            if (!GEMINI_KEY || GEMINI_KEY === "YOUR_API_KEY_HERE"){
+                console.error("GEMINI_API_KEY is not set. Cannot perform extraction with Gemini.");
+                return finalResult = {msg: "GEMINI_API_KEY not set"};
+            }
             const response = await ai.models.generateContent({
                 model: GEMINI_MODEL_EXTRACT,
                 contents: prompt,
@@ -151,7 +155,7 @@ async function saveBase64Image(base64Data) {
 }
 
 // Helper to generate infographic HTML visualization
-async function generateInfographicHTML(feature, useCase) {
+async function generateInfographicHTML(feature, useCase, provider) {
     try {
         console.log("Generating business value infographic...");
         const prompt = `Create an HTML/CSS infographic visualization that shows the business value of "${feature.featureName}" for the use case: "${useCase}".
@@ -171,13 +175,31 @@ The infographic should be a complete HTML snippet (div with inline styles) that:
 
 Return ONLY the HTML div with inline styles, no explanations.`;
         
-        const response = await ai.models.generateContent({
-            model: GEMINI_MODEL_GUIDE,
-            contents: prompt,
-            config: { temperature: 0.7 }
-        });
+        var response = null;
+        if(provider !== 'gemini') {
+            console.log("Generating infographic using OpenAI...");
+            response = await openai.chat.completions.create({
+                model: CHATGPT_MODEL_GUIDE,
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.7,
+            }).then(res => res.choices[0].message.content);;
+            
+        } else {
+            console.log("Generating infographic using Gemini...");
+            response = await ai.models.generateContent({
+                model: GEMINI_MODEL_GUIDE,
+                contents: prompt,
+                config: { temperature: 0.7 }
+            }).then(res => res.text);
+        }
+        
+        if(!response) {
+            console.error("No response or text received from infographic generation.");
+            return null;
+        }
 
-        let htmlInfographic = response.text.replace(/```(html)?/g, '').trim();
+
+        let htmlInfographic = response.replace(/```(html)?/g, '').trim();
         return htmlInfographic;
 
     } catch (error) {
@@ -212,7 +234,7 @@ async function generateGuide(feature, useCase, provider = 'gemini', industry = '
 
     try {
         // Start infographic HTML generation in parallel with text generation
-        const infographicPromise = generateInfographicHTML(feature, useCase);
+        const infographicPromise = generateInfographicHTML(feature, useCase, provider);
         
         let textPromise;
         if (provider === 'openai') {
