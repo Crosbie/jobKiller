@@ -42,7 +42,8 @@ hbs.registerHelper('if_eq', function(a, b, opts) {
 function getProvider(req) {
     // Note: We'll use the provider from the query/cache, but this function
     // still determines the provider for the initial extraction run.
-    const provider = req.query.provider && req.query.provider.toLowerCase() === 'openai' ? 'openai' : 'gemini';
+    // const provider = req.query.provider && req.query.provider.toLowerCase() === 'openai' ? 'openai' : 'gemini';
+    const provider = 'openai'; // TEMPORARY OVERRIDE FOR TESTING
     return provider;
 }
 
